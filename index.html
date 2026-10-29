@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>2048 Speedrun</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #0b1120;
+  --panel: #111b2e;
+  --panel-2: #172338;
+  --text: #f8fafc;
+  --muted: #94a3b8;
+  --border: #26354c;
+  --accent: #6366f1;
+  --accent-hover: #818cf8;
+  --empty: #202d42;
+  --cell: #1b2940;
+  --shadow: 0 18px 45px rgba(0,0,0,.22);
+}
+body.light {
+  color-scheme: light;
+  --bg: #f1f5f9;
+  --panel: #ffffff;
+  --panel-2: #f8fafc;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #dbe3ef;
+  --accent: #4f46e5;
+  --accent-hover: #6366f1;
+  --empty: #e2e8f0;
+  --cell: #e8edf5;
+  --shadow: 0 18px 45px rgba(15,23,42,.08);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh; background: var(--bg); color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  display: flex; justify-content: center; padding: 28px 14px 40px;
+  transition: background .2s, color .2s;
+}
+button { font: inherit; cursor: pointer; }
+button:focus-visible { outline: 3px solid #a5b4fc; outline-offset: 3px; }
+.app { width: min(100%, 520px); }
+header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:22px; }
+.brand { display:flex; align-items:center; gap:12px; }
+.logo {
+  width:46px;height:46px;border-radius:14px;display:grid;place-items:center;
+  background:linear-gradient(135deg,#6366f1,#a855f7);font-weight:950;font-size:17px;
+  box-shadow:0 8px 22px #6366f144;
+}
+h1 { margin:0; font-size:clamp(24px,5vw,32px); letter-spacing:-1.2px; line-height:1.05; }
+.subtitle { color:var(--muted);font-size:12px;margin-top:5px; }
+.header-actions { display:flex; gap:8px; }
+.icon-btn {
+  width:42px;height:42px;border:1px solid var(--border);border-radius:12px;
+  color:var(--text);background:var(--panel);display:grid;place-items:center;font-size:18px;
+}
+.icon-btn:hover { background:var(--panel-2); }
+.stats { display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-bottom:18px; }
+.stat { background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px 14px;min-width:0; }
+.stat-label { color:var(--muted);font-size:10px;font-weight:800;letter-spacing:1px;text-transform:uppercase; }
+.stat-value { font-size:clamp(19px,4vw,25px);font-weight:850;letter-spacing:-.6px;margin-top:4px;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis; }
+.mode-wrap { margin-bottom:16px; }
+.section-label { color:var(--muted);font-size:11px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase;margin:0 0 8px 3px; }
+.modes { display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:6px;background:var(--panel);border:1px solid var(--border);border-radius:14px; }
+.mode-tab { border:0;border-radius:9px;background:transparent;color:var(--muted);padding:10px 3px;font-weight:800;transition:.15s; }
+.mode-tab:hover { color:var(--text);background:var(--panel-2); }
+.mode-tab.active { background:var(--accent);color:white;box-shadow:0 4px 14px #6366f133; }
+.game-card { position:relative;background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:12px;box-shadow:var(--shadow); }
+.board {
+  width:100%;aspect-ratio:1;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);
+  gap:clamp(6px,1.7vw,10px);padding:clamp(7px,1.8vw,11px);background:var(--empty);border-radius:14px;
+  touch-action:pan-y;user-select:none;
+}
+.cell { min-width:0;min-height:0;border-radius:10px;background:var(--cell);display:grid;place-items:center;font-size:clamp(20px,6vw,36px);font-weight:900;letter-spacing:-1px;transition:background .12s; }
+.cell.filled { animation:appear .13s ease-out; }
+@keyframes appear { from{transform:scale(.82);opacity:.55} to{transform:scale(1);opacity:1} }
+.v2{background:#334155;color:#f8fafc}.v4{background:#475569;color:#f8fafc}
+.v8{background:#ea580c;color:white}.v16{background:#f97316;color:white}
+.v32{background:#ef4444;color:white}.v64{background:#dc2626;color:white}
+.v128{background:#eab308;color:#fff;font-size:clamp(17px,4.6vw,29px)}
+.v256{background:#ca8a04;color:#fff;font-size:clamp(17px,4.6vw,29px)}
+.v512{background:#65a30d;color:white;font-size:clamp(17px,4.6vw,29px)}
+.v1024{background:#06b6d4;color:white;font-size:clamp(14px,4vw,24px);box-shadow:0 0 14px #06b6d455}
+.v2048{background:#3b82f6;color:white;font-size:clamp(14px,4vw,24px);box-shadow:0 0 16px #3b82f466}
+.v4096{background:#8b5cf6;color:white;font-size:clamp(14px,4vw,24px);box-shadow:0 0 17px #8b5cf477}
+.v8192{background:#ec4899;color:white;font-size:clamp(14px,4vw,24px);box-shadow:0 0 18px #ec489977}
+.super{background:linear-gradient(135deg,#4f46e5,#a855f7,#ec4899);color:white;font-size:clamp(12px,3.6vw,22px);box-shadow:0 0 20px #a855f755}
+.below-board { display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 2px 1px;color:var(--muted);font-size:12px; }
+.pill { display:inline-flex;align-items:center;gap:6px;border-radius:999px;background:var(--panel-2);border:1px solid var(--border);padding:6px 9px;font-weight:750; }
+.dot { width:7px;height:7px;border-radius:50%;background:#64748b; }
+.dot.running { background:#22c55e;box-shadow:0 0 8px #22c55e88; }
+.controls { display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px; }
+.btn { border:1px solid var(--border);background:var(--panel);color:var(--text);border-radius:12px;padding:12px;font-weight:800;transition:.15s; }
+.btn:hover { background:var(--panel-2);transform:translateY(-1px); }
+.btn.primary { background:var(--accent);color:#fff;border-color:transparent; }
+.btn.primary:hover { background:var(--accent-hover); }
+.help { margin:15px 2px 0;color:var(--muted);font-size:12px;line-height:1.65;text-align:center; }
+kbd { display:inline-block;border:1px solid var(--border);border-bottom-width:2px;border-radius:5px;padding:1px 5px;color:var(--text);font:inherit;font-size:11px;background:var(--panel); }
+.overlay { position:absolute;inset:12px;border-radius:14px;background:color-mix(in srgb,var(--bg) 84%,transparent);backdrop-filter:blur(7px);display:flex;align-items:center;justify-content:center;text-align:center;padding:20px;z-index:5; }
+.overlay.hidden { display:none; }
+.overlay-box { width:100%;max-width:280px; }
+.overlay-icon { font-size:48px;line-height:1.2;margin-bottom:8px; }
+.overlay h2 { font-size:26px;margin:0 0 8px;letter-spacing:-.7px; }
+.overlay p { color:var(--muted);font-size:13px;margin:0 0 17px;line-height:1.5; }
+.result-grid { display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px; }
+.result { background:var(--panel);border:1px solid var(--border);padding:10px;border-radius:10px; }
+.result span { display:block;color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px; }
+.result strong { display:block;font-size:19px;margin-top:4px; }
+.pb-banner { color:#fbbf24;font-size:12px;font-weight:900;letter-spacing:.8px;margin-bottom:12px; }
+footer { margin-top:18px;text-align:center;color:var(--muted);font-size:11px; }
+@media(max-width:380px){body{padding:18px 10px}.stat{padding:10px}.stat-label{font-size:9px}.board{gap:5px;padding:7px}.cell{border-radius:7px}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+</style>
+</head>
+<body>
+<main class="app">
+  <header>
+    <div class="brand">
+      <div class="logo">2048</div>
+      <div><h1>2048 <span style="color:#818cf8">Speedrun</span></h1><div class="subtitle">Merge fast. Beat your best.</div></div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="themeBtn" aria-label="Toggle theme" title="Toggle theme">☾</button>
+      <button class="icon-btn" id="resetBtn" aria-label="New game" title="New game">↻</button>
+    </div>
+  </header>
+
+  <section class="stats" aria-label="Game statistics">
+    <div class="stat"><div class="stat-label">Time</div><div class="stat-value" id="time">00:00.00</div></div>
+    <div class="stat"><div class="stat-label">Score</div><div class="stat-value" id="score">0</div></div>
+    <div class="stat"><div class="stat-label">Best time</div><div class="stat-value" id="best">--:--.--</div></div>
+  </section>
+
+  <section class="mode-wrap">
+    <div class="section-label">Target tile mode</div>
+    <div class="modes" role="group" aria-label="Choose target tile">
+      <button class="mode-tab" data-target="1024">1024</button>
+      <button class="mode-tab active" data-target="2048" aria-pressed="true">2048</button>
+      <button class="mode-tab" data-target="4096">4096</button>
+      <button class="mode-tab" data-target="8192">8192</button>
+    </div>
+  </section>
+
+  <section class="game-card" aria-label="2048 game">
+    <div id="board" class="board" role="grid" aria-label="Game board"></div>
+    <div class="below-board">
+      <span class="pill"><span class="dot" id="timerDot"></span><span id="status">Ready to start</span></span>
+      <span>Moves <strong id="moves" style="color:var(--text)">0</strong></span>
+    </div>
+    <div class="overlay hidden" id="overlay">
+      <div class="overlay-box">
+        <div class="overlay-icon" id="overlayIcon">🏆</div>
+        <h2 id="overlayTitle">Speedrun complete!</h2>
+        <p id="overlayText">You reached the target tile.</p>
+        <div class="pb-banner hidden" id="pbBanner">✦ NEW PERSONAL BEST ✦</div>
+        <div class="result-grid">
+          <div class="result"><span>Time</span><strong id="resultTime">00:00.00</strong></div>
+          <div class="result"><span>Score</span><strong id="resultScore">0</strong></div>
+          <div class="result"><span>Moves</span><strong id="resultMoves">0</strong></div>
+          <div class="result"><span>Target</span><strong id="resultTarget">2048</strong></div>
+        </div>
+        <button class="btn primary" id="playAgainBtn" style="width:100%">Play again</button>
+        <button class="btn hidden" id="nextModeBtn" style="width:100%;margin-top:8px">Next target →</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="controls">
+    <button class="btn primary" id="newGameBtn">↻ New game</button>
+    <button class="btn" id="undoBtn" title="Undo the previous move">↶ Undo move</button>
+  </div>
+  <p class="help">Use <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> or <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> to move. Swipe on mobile. Your best time is saved separately for each target on this device.</p>
+  <footer>Built for the chase. No account required.</footer>
+</main>
+<script>
+(() => {
+  "use strict";
+  const SIZE = 4;
+  const TARGETS = [1024, 2048, 4096, 8192];
+  const $ = id => document.getElementById(id);
+
+  let target = 2048;
+  let board = [];
+  let score = 0;
+  let moves = 0;
+  let startedAt = null;
+  let elapsedBeforePause = 0;
+  let timerInterval = null;
+  let running = false;
+  let finished = false;
+  let undoState = null;
+  let previousBoard = null;
+  let previousScore = 0;
+  let previousMoves = 0;
+  let previousElapsed = 0;
+  let previousStarted = false;
+  let lastSpawn = -1;
+
+  const cloneBoard = b => b.map(row => row.slice());
+  const emptyBoard = () => Array.from({length: SIZE}, () => Array(SIZE).fill(0));
+  const nowElapsed = () => running && startedAt !== null
+    ? elapsedBeforePause + (performance.now() - startedAt)
+    : elapsedBeforePause;
+
+  function formatTime(ms) {
+    const centis = Math.floor(Math.max(0, ms) / 10);
+    const minutes = Math.floor(centis / 6000);
+    const seconds = Math.floor((centis % 6000) / 100);
+    const hundredths = centis % 100;
+    return `${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}.${String(hundredths).padStart(2,'0')}`;
+  }
+  function bestKey() { return `2048-speedrun-best-${target}`; }
+  function getBest() {
+    try {
+      const value = Number(localStorage.getItem(bestKey()));
+      return Number.isFinite(value) && value > 0 ? value : null;
+    } catch { return null; }
+  }
+  function saveBest(ms) {
+    try { localStorage.setItem(bestKey(), String(ms)); } catch {}
+  }
+  function updateStats() {
+    $("time").textContent = formatTime(nowElapsed());
+    $("score").textContent = score.toLocaleString();
+    $("moves").textContent = moves;
+    const best = getBest();
+    $("best").textContent = best ? formatTime(best) : "--:--.--";
+  }
+  function setStatus(text, active = false) {
+    $("status").textContent = text;
+    $("timerDot").classList.toggle("running", active);
+  }
+  function startTimer() {
+    if (running || finished) return;
+    running = true;
+    startedAt = performance.now();
+    timerInterval = setInterval(updateStats, 31);
+    setStatus("Speedrun in progress", true);
+  }
+  function stopTimer() {
+    if (running && startedAt !== null) elapsedBeforePause += performance.now() - startedAt;
+    running = false;
+    startedAt = null;
+    if (timerInterval !== null) clearInterval(timerInterval);
+    timerInterval = null;
+    updateStats();
+  }
+  function resetTimer() {
+    stopTimer();
+    elapsedBeforePause = 0;
+    startedAt = null;
+    running = false;
+    finished = false;
+  }
+  function spawnTile() {
+    const empty = [];
+    for (let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++) if(!board[r][c]) empty.push([r,c]);
+    if (!empty.length) return false;
+    const [r,c] = empty[Math.floor(Math.random()*empty.length)];
+    board[r][c] = Math.random() < 0.9 ? 2 : 4;
+    lastSpawn = r*SIZE+c;
+    return true;
+  }
+  function startNewGame() {
+    resetTimer();
+    board = emptyBoard();
+    score = 0;
+    moves = 0;
+    undoState = null;
+    spawnTile();
+    spawnTile();
+    $("overlay").classList.add("hidden");
+    setStatus("Ready to start");
+    updateStats();
+    renderBoard();
+  }
+  function renderBoard() {
+    const boardEl = $("board");
+    boardEl.innerHTML = "";
+    for(let r=0;r<SIZE;r++) {
+      for(let c=0;c<SIZE;c++) {
+        const value = board[r][c];
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        cell.setAttribute("role","gridcell");
+        cell.setAttribute("aria-label", value ? String(value) : "Empty");
+        if(value) {
+          cell.textContent = value.toLocaleString();
+          cell.classList.add("filled");
+          if(value > 8192) cell.classList.add("super");
+          else cell.classList.add("v"+value);
+          if(value >= 10000) cell.style.fontSize = "clamp(11px,3vw,18px)";
+        }
+        boardEl.appendChild(cell);
+      }
+    }
+  }
+  function lineCoordinates(direction, line) {
+    const coords = [];
+    for(let i=0;i<SIZE;i++) {
+      if(direction==="left") coords.push([line,i]);
+      if(direction==="right") coords.push([line,SIZE-1-i]);
+      if(direction==="up") coords.push([i,line]);
+      if(direction==="down") coords.push([SIZE-1-i,line]);
+    }
+    return coords;
+  }
+  function canMove() {
+    for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++) {
+      if(board[r][c]===0) return true;
+      if(c<SIZE-1 && board[r][c]===board[r][c+1]) return true;
+      if(r<SIZE-1 && board[r][c]===board[r+1][c]) return true;
+    }
+    return false;
+  }
+  function move(direction) {
+    if(finished) return;
+    const before = cloneBoard(board);
+    const beforeScore = score;
+    let changed = false;
+    let hitTarget = false;
+
+    for(let line=0;line<SIZE;line++) {
+      const coords = lineCoordinates(direction,line);
+      const values = coords.map(([r,c]) => board[r][c]).filter(v=>v!==0);
+      const merged = [];
+      for(let i=0;i<values.length;i++) {
+        if(i+1<values.length && values[i]===values[i+1]) {
+          const val = values[i]*2;
+          merged.push(val);
+          score += val;
+          if(val >= target) hitTarget = true;
+          i++;
+        } else merged.push(values[i]);
+      }
+      while(merged.length<SIZE) merged.push(0);
+      coords.forEach(([r,c],i) => {
+        if(board[r][c] !== merged[i]) changed = true;
+        board[r][c] = merged[i];
+      });
+    }
+    if(!changed) return;
+
+    undoState = {
+      board: before,
+      score: beforeScore,
+      moves,
+      elapsed: nowElapsed(),
+      wasRunning: running || startedAt !== null
+    };
+    if(!running && elapsedBeforePause===0) startTimer();
+    moves++;
+    spawnTile();
+    updateStats();
+    renderBoard();
+
+    if(hitTarget) {
+      finishGame(true);
+    } else if(!canMove()) {
+      finishGame(false);
+    }
+  }
+  function finishGame(won) {
+    stopTimer();
+    finished = true;
+    const time = elapsedBeforePause;
+    let newPB = false;
+    if(won) {
+      const oldBest = getBest();
+      if(oldBest === null || time < oldBest) {
+        saveBest(time);
+        newPB = true;
+      }
+    }
+    $("overlayIcon").textContent = won ? "🏆" : "💀";
+    $("overlayTitle").textContent = won ? "Speedrun complete!" : "Game over";
+    $("overlayText").textContent = won
+      ? `You reached the ${target.toLocaleString()} tile. Great run!`
+      : "No more valid moves remain. Give it another try.";
+    $("resultTime").textContent = formatTime(time);
+    $("resultScore").textContent = score.toLocaleString();
+    $("resultMoves").textContent = moves;
+    $("resultTarget").textContent = target.toLocaleString();
+    $("pbBanner").classList.toggle("hidden", !newPB);
+    $("nextModeBtn").classList.toggle("hidden", !won || target===8192);
+    $("overlay").classList.remove("hidden");
+    setStatus(won ? "Target reached" : "No moves left");
+    updateStats();
+  }
+  function undoMove() {
+    if(!undoState || finished) return;
+    const state = undoState;
+    stopTimer();
+    board = cloneBoard(state.board);
+    score = state.score;
+    moves = state.moves;
+    elapsedBeforePause = state.elapsed;
+    startedAt = null;
+    running = false;
+    undoState = null;
+    setStatus(elapsedBeforePause ? "Paused after undo" : "Ready to start");
+    updateStats();
+    renderBoard();
+  }
+  function switchMode(nextTarget) {
+    if(!TARGETS.includes(nextTarget)) return;
+    target = nextTarget;
+    document.querySelectorAll(".mode-tab").forEach(btn => {
+      const active = Number(btn.dataset.target)===target;
+      btn.classList.toggle("active",active);
+      btn.setAttribute("aria-pressed",String(active));
+    });
+    startNewGame();
+  }
+  function toggleTheme() {
+    const light = document.body.classList.toggle("light");
+    $("themeBtn").textContent = light ? "☀" : "☾";
+    $("themeBtn").setAttribute("aria-label", light ? "Switch to dark theme" : "Switch to light theme");
+    try { localStorage.setItem("2048-speedrun-theme", light ? "light" : "dark"); } catch {}
+  }
+  function loadTheme() {
+    try {
+      if(localStorage.getItem("2048-speedrun-theme")==="light") {
+        document.body.classList.add("light");
+        $("themeBtn").textContent = "☀";
+      }
+    } catch {}
+  }
+
+  document.querySelectorAll(".mode-tab").forEach(btn => {
+    btn.addEventListener("click", () => switchMode(Number(btn.dataset.target)));
+  });
+  $("resetBtn").addEventListener("click",startNewGame);
+  $("newGameBtn").addEventListener("click",startNewGame);
+  $("playAgainBtn").addEventListener("click",startNewGame);
+  $("undoBtn").addEventListener("click",undoMove);
+  $("themeBtn").addEventListener("click",toggleTheme);
+  $("nextModeBtn").addEventListener("click",() => {
+    const i = TARGETS.indexOf(target);
+    if(i>=0 && i<TARGETS.length-1) switchMode(TARGETS[i+1]);
+  });
+  window.addEventListener("keydown", event => {
+    const keys = {
+      ArrowLeft:"left", a:"left", A:"left",
+      ArrowRight:"right", d:"right", D:"right",
+      ArrowUp:"up", w:"up", W:"up",
+      ArrowDown:"down", s:"down", S:"down"
+    };
+    const direction = keys[event.key];
+    if(direction) {
+      event.preventDefault();
+      move(direction);
+    } else if(event.key==="Escape" && !$("overlay").classList.contains("hidden")) {
+      $("overlay").classList.add("hidden");
+    } else if((event.key==="r" || event.key==="R") && !event.ctrlKey && !event.metaKey) {
+      startNewGame();
+    }
+  }, {passive:false});
+
+  let touchStartX=0, touchStartY=0, touchStartTime=0;
+  $("board").addEventListener("touchstart",event=>{
+    if(!event.changedTouches.length) return;
+    touchStartX=event.changedTouches[0].clientX;
+    touchStartY=event.changedTouches[0].clientY;
+    touchStartTime=Date.now();
+  },{passive:true});
+  $("board").addEventListener("touchend",event=>{
+    if(!event.changedTouches.length || finished) return;
+    const dx=event.changedTouches[0].clientX-touchStartX;
+    const dy=event.changedTouches[0].clientY-touchStartY;
+    if(Date.now()-touchStartTime>700 || Math.max(Math.abs(dx),Math.abs(dy))<25) return;
+    if(Math.abs(dx)>Math.abs(dy)) move(dx>0?"right":"left");
+    else move(dy>0?"down":"up");
+  },{passive:true});
+
+  loadTheme();
+  startNewGame();
+})();
+</script>
+</body>
+</html>
